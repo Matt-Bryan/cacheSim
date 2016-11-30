@@ -4,8 +4,17 @@
 #define AMAX 10			/* Maximum (square) array size */
 
 #define CACHESIM 0		/* Set to 1 if simulating Cache */
+#define ADDSIZE 32
+#define BYTESPERBLOCK 4
 
 #include <stdio.h>
+
+typedef struct cache {
+   unsigned int *index;
+   unsigned int *tag;
+   unsigned int *data;
+   int valid;
+} Cache;
 
 /*	memory management, code density, Cache emulation - statistics generation */
 /*	Generated for CSC 315 Lab 5 */
@@ -30,6 +39,18 @@ mem_write(int *mp)
 
 	}
 
+void makeCache(int assoc, int cacheSize, Cache *cache) {
+   int idxSize, tagSize, dataSize, tmp;
+   
+   m = ADDSIZE;
+   tmp = cacheSize / assoc;
+   s = log(tmp) / log(2); //find s from 2^s = tmp
+   tmp = (cacheSize / 4) * 4; //number of bytes per line
+   n = log(tmp) / log(2) //find n from 2^n = bytes per line
+   
+   
+   
+}
 
 /* Statically define the arrays a, b, and mult, where mult will become the cross product of a and b, i.e., a x b. */
 
