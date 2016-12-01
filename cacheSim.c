@@ -55,7 +55,7 @@ void makeCache(int assoc, int cacheSize, Cache *cache) {
 /* Statically define the arrays a, b, and mult, where mult will become the cross product of a and b, i.e., a x b. */
 
 static int a[AMAX][AMAX], b[AMAX][AMAX], mult[AMAX][AMAX];
-static int cacheSize, associativity;
+static int cache, associativity;
 
 
 
@@ -109,9 +109,9 @@ int main()
 
     printf("Size of pointer is: %d\n\n", sizeof(mp1));
 
-    while (cacheSize != 16 && cacheSize != 256) {
+    while (cache != 16 && cache != 256) {
     	printf("Input cache size in words (16 or 256): ");
-    	scanf("%3d", &cacheSize);
+    	scanf("%3d", &cache);
     }
     while (associativity != 1 && associativity != 2 && associativity != 4) {
     	printf("Input associtivty (1, 2, or 4): ");
