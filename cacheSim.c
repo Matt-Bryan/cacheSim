@@ -3,7 +3,7 @@
 
 #define AMAX 10			/* Maximum (square) array size */
 
-#define CACHESIM 0		/* Set to 1 if simulating Cache */
+#define CACHESIM 1		/* Set to 1 if simulating Cache */
 
 #include <stdio.h>
 
@@ -16,7 +16,7 @@
 mem_read(int *mp)
 	{
 
-	/* printf("Memory read from location %p\n", mp);  */
+	//printf("Memory read from location %p\n", mp);
 
 	}
 
@@ -26,7 +26,7 @@ mem_read(int *mp)
 mem_write(int *mp)
 	{
 
-	/* printf("Memory write to location %p\n", mp); */
+	//printf("Memory write to location %p\n", mp);
 
 	}
 
@@ -34,7 +34,7 @@ mem_write(int *mp)
 /* Statically define the arrays a, b, and mult, where mult will become the cross product of a and b, i.e., a x b. */
 
 static int a[AMAX][AMAX], b[AMAX][AMAX], mult[AMAX][AMAX];
-
+static int cacheSize, assoc;
 
 
 
@@ -87,6 +87,15 @@ int main()
     int *mp1, *mp2, *mp3;
 
     printf("Size of pointer is: %d\n\n", sizeof(mp1));
+
+    while (cacheSize != 16 && cacheSize != 256) {
+    	printf("Input cache size in words (16 or 256): ");
+    	scanf("%3d", &cacheSize);
+    }
+    while (assoc != 1 && assoc != 2 && assoc != 4) {
+    	printf("Input associtivty (1, 2, or 4): ");
+    	scanf("%1d", &assoc);
+    }
 
     printf("Enter rows and column for first matrix: ");
     scanf("%d%d", &r1, &c1);
