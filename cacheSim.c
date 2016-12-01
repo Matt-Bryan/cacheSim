@@ -39,7 +39,12 @@ mem_write(int *mp)
 
 	}
 
-void makeCache(int assoc, int cacheSize, Cache *cache) {
+/* Statically define the arrays a, b, and mult, where mult will become the cross product of a and b, i.e., a x b. */
+
+static int a[AMAX][AMAX], b[AMAX][AMAX], mult[AMAX][AMAX];
+static int cacheSize, assoc;
+
+void makeCache(Cache *cache) {
    int idxSize, tagSize, dataSize, tmp;
    
    //m = ADDSIZE;
@@ -51,13 +56,6 @@ void makeCache(int assoc, int cacheSize, Cache *cache) {
    
    
 }
-
-/* Statically define the arrays a, b, and mult, where mult will become the cross product of a and b, i.e., a x b. */
-
-static int a[AMAX][AMAX], b[AMAX][AMAX], mult[AMAX][AMAX];
-static int cache, associativity;
-
-
 
 
 void matmul( r1, c1, c2 )
@@ -109,13 +107,13 @@ int main()
 
     printf("Size of pointer is: %d\n\n", sizeof(mp1));
 
-    while (cache != 16 && cache != 256) {
+    while (cacheSize != 16 && cacheSize != 256) {
     	printf("Input cache size in words (16 or 256): ");
-    	scanf("%3d", &cache);
+    	scanf("%3d", &cacheSize);
     }
-    while (associativity != 1 && associativity != 2 && associativity != 4) {
+    while (assoc != 1 && assoc != 2 && assoc != 4) {
     	printf("Input associtivty (1, 2, or 4): ");
-    	scanf("%1d", &associativity);
+    	scanf("%1d", &assoc);
     }
 
     printf("Enter rows and column for first matrix: ");
