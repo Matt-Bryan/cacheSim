@@ -3,7 +3,7 @@
 
 #define AMAX 10			/* Maximum (square) array size */
 
-#define CACHESIM 0		/* Set to 1 if simulating Cache */
+#define CACHESIM 1		/* Set to 1 if simulating Cache */
 #define ADDSIZE 32
 #define BYTESPERBLOCK 4
 
@@ -14,12 +14,16 @@
 #define TWOFIFTYSIX 0x7F
 #define FOURFIFTYSIX 0x3F
 
+#define MIN(a,b) ((a) < (b) ? a : b)
+
 #include <stdio.h>
+#include <stdlib.h>
 
 typedef struct cblock {
    unsigned int tag;
    unsigned int data;
    int valid;
+   int age;
 } cBlock;
 
 static cBlock *cacheA;
@@ -27,7 +31,8 @@ static cBlock *cacheB;
 static cBlock *cacheC;
 static cBlock *cacheD;
 
-static int cacheSize, assoc, hits, misses;
+static int cacheSize, assoc;
+static float hits, misses, writes, reads;
 
 /*	memory management, code density, Cache emulation - statistics generation */
 /*	Generated for CSC 315 Lab 5 */
@@ -36,50 +41,435 @@ static int cacheSize, assoc, hits, misses;
 /* This function gets called with each "read" reference to memory */
 
 void mem_read(int *mp) {
-   int idx, tag;
+   int idx, tag, found = 0, count, temp;
    
    if (cacheSize == 16) {
       if (assoc == 1) {
-         idx = mp & ONESIX;
-         tag = mp >> 4;
+         idx = (int)mp & ONESIX;
+         tag = (int)mp >> 4;
          
+         if(cacheA[idx].valid) {
+         	if (cacheA[idx].tag == tag) {
+         		hits++;
+         		cacheA[idx].age = 1000;
+
+         		for (count = 0; count < 16 && count != idx; count++) {
+         			cacheA[count].age--;
+         		}
+         		for (count = idx + 1; count < 16 && count != idx; count++) {
+         			cacheA[count].age--;
+         		}
+         	}
+         	else {
+         		misses++;
+         		cacheA[idx].tag = tag;
+         		cacheA[idx].data = *mp;
+         		cacheA[idx].valid = 1;
+         		cacheA[idx].age = 1000;
+         	}
+         }
+         else {
+         	misses++;
+         	cacheA[idx].tag = tag;
+         	cacheA[idx].data = *mp;
+         	cacheA[idx].valid = 1;
+         	cacheA[idx].age = 1000;
+         }
       }
       else if (assoc == 2) {
-         idx = mp & TWOSIX;
-         tag = mp >> 3;
+         idx = (int)mp & TWOSIX;
+         tag = (int)mp >> 3;
+
+         if (cacheA[idx].valid && found == 0) {
+         	if (cacheA[idx].tag == tag) {
+         		hits++;
+         		cacheA[idx].age = 1000;
+         		found = 1;
+
+         		for (count = 0; count < 8 && count != idx; count++) {
+         			cacheA[count].age--;
+         		}
+         		for (count = idx + 1; count < 8 && count != idx; count++) {
+         			cacheA[count].age--;
+         		}
+         		for (count = 0; count < 8; count++) {
+         			cacheB[count].age--;
+         		}
+         	}
+         }
+         if (cacheB[idx].valid && found == 0) {
+         	if (cacheB[idx].tag == tag) {
+         		hits++;
+         		cacheB[idx].age = 1000;
+         		found = 1;
+
+         		for (count = 0; count < 8; count++) {
+         			cacheA[count].age--;
+         		}
+         		for (count = 0; count < 8 && count != idx; count++) {
+         			cacheB[count].age--;
+         		}
+         		for (count = idx + 1; count < 8 && count != idx; count++) {
+         			cacheB[count].age--;
+         		}
+         	}
+         }
+         if (found == 0) {
+         	misses++;
+         	if (cacheA[idx].age > cacheB[idx].age) {
+         		cacheB[idx].tag = tag;
+         		cacheB[idx].data = *mp;
+         		cacheB[idx].valid = 1;
+         		cacheB[idx].age = 1000;
+         	}
+         	else {
+         		cacheA[idx].tag = tag;
+         		cacheA[idx].data = *mp;
+         		cacheA[idx].valid = 1;
+         		cacheA[idx].age = 1000;
+         	}
+         }
       }
       else if (assoc == 4) {
-         idx = mp & FOURSIX;
-         tag = mp >> 2;
+         idx = (int)mp & FOURSIX;
+         tag = (int)mp >> 2;
+
+         if (cacheA[idx].valid) {
+         	if (cacheA[idx].tag == tag) {
+         		hits++;
+         		found = 1;
+         		cacheA[idx].age = 1000;
+
+         		for (count = 0; count < 4 && count != idx; count++) {
+         			cacheA[count].age--;
+         		}
+         		for (count = idx + 1; count < 4 && count != idx; count++) {
+         			cacheA[count].age--;
+         		}
+         		for (count = 0; count < 4; count++) {
+         			cacheB[count].age--;
+         		}
+         		for (count = 0; count < 4; count++) {
+         			cacheC[count].age--;
+         		}
+         		for (count = 0; count < 4; count++) {
+         			cacheD[count].age--;
+         		}
+         	}
+         }
+         if (cacheB[idx].valid && found == 0) {
+         	if (cacheB[idx].tag == tag) {
+         		hits++;
+         		found = 1;
+         		cacheB[idx].age = 1000;
+
+         		for (count = 0; count < 4; count++) {
+         			cacheA[count].age--;
+         		}
+         		for (count = 0; count < 4 && count != idx; count++) {
+         			cacheB[count].age--;
+         		}
+         		for (count = idx + 1; count < 4 && count != idx; count++) {
+         			cacheB[count].age--;
+         		}
+         		for (count = 0; count < 4; count++) {
+         			cacheC[count].age--;
+         		}
+         		for (count = 0; count < 4; count++) {
+         			cacheD[count].age--;
+         		}
+         	}
+         }
+         if (cacheC[idx].valid && found == 0) {
+         	if (cacheC[idx].tag == tag) {
+         		hits++;
+         		found = 1;
+         		cacheC[idx].age = 1000;
+
+         		for (count = 0; count < 4; count++) {
+         			cacheA[count].age--;
+         		}
+         		for (count = 0; count < 4; count++) {
+         			cacheB[count].age--;
+         		}
+         		for (count = 0; count < 4 && count != idx; count++) {
+         			cacheC[count].age--;
+         		}
+         		for (count = idx + 1; count < 4 && count != idx; count++) {
+         			cacheC[count].age--;
+         		}
+         		for (count = 0; count < 4; count++) {
+         			cacheD[count].age--;
+         		}
+         	}
+         }
+         if (cacheD[idx].valid && found == 0) {
+         	if (cacheD[idx].tag == tag) {
+         		hits++;
+         		found = 1;
+         		cacheD[idx].age = 1000;
+
+         		for (count = 0; count < 4; count++) {
+         			cacheA[count].age--;
+         		}
+         		for (count = 0; count < 4; count++) {
+         			cacheB[count].age--;
+         		}
+         		for (count = 0; count < 4; count++) {
+         			cacheC[count].age--;
+         		}
+         		for (count = 0; count < 4 && count != idx; count++) {
+         			cacheD[count].age--;
+         		}
+         		for (count = idx + 1; count < 4 && count != idx; count++) {
+         			cacheD[count].age--;
+         		}
+         	}
+         }
+         if (found == 0) {
+         	misses++;
+         	temp = MIN(MIN(cacheA[idx].age, cacheB[idx].age), MIN(cacheC[idx].age, cacheD[idx].age));
+         	if (temp == cacheA[idx].age) {
+         		cacheA[idx].tag = tag;
+         		cacheA[idx].data = *mp;
+         		cacheA[idx].valid = 1;
+         		cacheA[idx].age = 1000;
+         	}
+         	else if (temp == cacheB[idx].age) {
+         		cacheB[idx].tag = tag;
+         		cacheB[idx].data = *mp;
+         		cacheB[idx].valid = 1;
+         		cacheB[idx].age = 1000;
+         	}
+         	else if (temp == cacheC[idx].age) {
+         		cacheC[idx].tag = tag;
+         		cacheC[idx].data = *mp;
+         		cacheC[idx].valid = 1;
+         		cacheC[idx].age = 1000;
+         	}
+         	else {
+         		cacheD[idx].tag = tag;
+         		cacheD[idx].data = *mp;
+         		cacheD[idx].valid = 1;
+         		cacheD[idx].age = 1000;
+         	}
+         }
       }
    }
    else {
       if (assoc == 1) {
-         idx = mp & ONEFIFTYSIX;
-         tag = mp >> 8;
+         idx = (int)mp & ONEFIFTYSIX;
+         tag = (int)mp >> 8;
+
+         if(cacheA[idx].valid) {
+         	if (cacheA[idx].tag == tag) {
+         		hits++;
+         		cacheA[idx].age = 1000;
+
+         		for (count = 0; count < 256 && count != idx; count++) {
+         			cacheA[count].age--;
+         		}
+         		for (count = idx + 1; count < 256; count++) {
+         			cacheA[count].age--;
+         		}
+         	}
+         	else {
+         		misses++;
+         		cacheA[idx].tag = tag;
+         		cacheA[idx].data = *mp;
+         		cacheA[idx].valid = 1;
+         		cacheA[idx].age = 1000;
+         	}
+         }
+         else {
+         	misses++;
+         	cacheA[idx].tag = tag;
+         	cacheA[idx].data = *mp;
+         	cacheA[idx].valid = 1;
+         	cacheA[idx].age = 1000;
+         }
       }
       else if (assoc == 2) {
-         idx = mp & TWOFIFTYSIX;
-         tag = mp >> 7;
+         idx = (int)mp & TWOFIFTYSIX;
+         tag = (int)mp >> 7;
+
+         if (cacheA[idx].valid && found == 0) {
+         	if (cacheA[idx].tag == tag) {
+         		hits++;
+         		cacheA[idx].age = 1000;
+         		found = 1;
+
+         		for (count = 0; count < 128 && count != idx; count++) {
+         			cacheA[count].age--;
+         		}
+         		for (count = idx + 1; count < 128 && count != idx; count++) {
+         			cacheA[count].age--;
+         		}
+         		for (count = 0; count < 128; count++) {
+         			cacheB[count].age--;
+         		}
+         	}
+         }
+         if (cacheB[idx].valid && found == 0) {
+         	if (cacheB[idx].tag == tag) {
+         		hits++;
+         		cacheB[idx].age = 1000;
+         		found = 1;
+
+         		for (count = 0; count < 128; count++) {
+         			cacheA[count].age--;
+         		}
+         		for (count = 0; count < 128 && count != idx; count++) {
+         			cacheB[count].age--;
+         		}
+         		for (count = idx + 1; count < 128 && count != idx; count++) {
+         			cacheB[count].age--;
+         		}
+         	}
+         }
+         if (found == 0) {
+         	misses++;
+         	if (cacheA[idx].age > cacheB[idx].age) {
+         		cacheB[idx].tag = tag;
+         		cacheB[idx].data = *mp;
+         		cacheB[idx].valid = 1;
+         		cacheB[idx].age = 1000;
+         	}
+         	else {
+         		cacheA[idx].tag = tag;
+         		cacheA[idx].data = *mp;
+         		cacheA[idx].valid = 1;
+         		cacheA[idx].age = 1000;
+         	}
+         }
       }
       else if (assoc == 4) {
-         idx = mp & FOURFIFTYSIX;
-         tag = mp >> 6;
+         idx = (int)mp & FOURFIFTYSIX;
+         tag = (int)mp >> 6;
+
+         if (cacheA[idx].valid) {
+         	if (cacheA[idx].tag == tag) {
+         		hits++;
+         		found = 1;
+         		cacheA[idx].age = 1000;
+
+         		for (count = 0; count < 64 && count != idx; count++) {
+         			cacheA[count].age--;
+         		}
+         		for (count = idx + 1; count < 64 && count != idx; count++) {
+         			cacheA[count].age--;
+         		}
+         		for (count = 0; count < 64; count++) {
+         			cacheB[count].age--;
+         		}
+         		for (count = 0; count < 64; count++) {
+         			cacheC[count].age--;
+         		}
+         		for (count = 0; count < 64; count++) {
+         			cacheD[count].age--;
+         		}
+         	}
+         }
+         if (cacheB[idx].valid && found == 0) {
+         	if (cacheB[idx].tag == tag) {
+         		hits++;
+         		found = 1;
+         		cacheB[idx].age = 1000;
+
+         		for (count = 0; count < 64; count++) {
+         			cacheA[count].age--;
+         		}
+         		for (count = 0; count < 64 && count != idx; count++) {
+         			cacheB[count].age--;
+         		}
+         		for (count = idx + 1; count < 64 && count != idx; count++) {
+         			cacheB[count].age--;
+         		}
+         		for (count = 0; count < 64; count++) {
+         			cacheC[count].age--;
+         		}
+         		for (count = 0; count < 64; count++) {
+         			cacheD[count].age--;
+         		}
+         	}
+         }
+         if (cacheC[idx].valid && found == 0) {
+         	if (cacheC[idx].tag == tag) {
+         		hits++;
+         		found = 1;
+         		cacheC[idx].age = 1000;
+
+         		for (count = 0; count < 64; count++) {
+         			cacheA[count].age--;
+         		}
+         		for (count = 0; count < 64; count++) {
+         			cacheB[count].age--;
+         		}
+         		for (count = 0; count < 64 && count != idx; count++) {
+         			cacheC[count].age--;
+         		}
+         		for (count = idx + 1; count < 64 && count != idx; count++) {
+         			cacheC[count].age--;
+         		}
+         		for (count = 0; count < 64; count++) {
+         			cacheD[count].age--;
+         		}
+         	}
+         }
+         if (cacheD[idx].valid && found == 0) {
+         	if (cacheD[idx].tag == tag) {
+         		hits++;
+         		found = 1;
+         		cacheD[idx].age = 1000;
+
+         		for (count = 0; count < 64; count++) {
+         			cacheA[count].age--;
+         		}
+         		for (count = 0; count < 64; count++) {
+         			cacheB[count].age--;
+         		}
+         		for (count = 0; count < 64; count++) {
+         			cacheC[count].age--;
+         		}
+         		for (count = 0; count < 64 && count != idx; count++) {
+         			cacheD[count].age--;
+         		}
+         		for (count = 0; count < 64 && count != idx; count++) {
+         			cacheD[count].age--;
+         		}
+         	}
+         }
+         if (found == 0) {
+         	misses++;
+         	temp = MIN(MIN(cacheA[idx].age, cacheB[idx].age), MIN(cacheC[idx].age, cacheD[idx].age));
+         	if (temp == cacheA[idx].age) {
+         		cacheA[idx].tag = tag;
+         		cacheA[idx].data = *mp;
+         		cacheA[idx].valid = 1;
+         		cacheA[idx].age = 1000;
+         	}
+         	else if (temp == cacheB[idx].age) {
+         		cacheB[idx].tag = tag;
+         		cacheB[idx].data = *mp;
+         		cacheB[idx].valid = 1;
+         		cacheB[idx].age = 1000;
+         	}
+         	else if (temp == cacheC[idx].age) {
+         		cacheC[idx].tag = tag;
+         		cacheC[idx].data = *mp;
+         		cacheC[idx].valid = 1;
+         		cacheC[idx].age = 1000;
+         	}
+         	else {
+         		cacheD[idx].tag = tag;
+         		cacheD[idx].data = *mp;
+         		cacheD[idx].valid = 1;
+         		cacheD[idx].age = 1000;
+         	}
+         }
       }
    }
-   
-   if (cache[idx].valid) {
-      if (cache[idx].tag == tag) { //hit
-         hits++;
-      }
-      else { //miss
-         cache[idx].tag = tag;
-         
-      }
-   }
-   else { //miss
-      misses++;
-   }
+   reads++;
 	//printf("Memory read from location %p\n", mp);
 
 }
@@ -91,25 +481,704 @@ mem_write(int *mp)
 	{
 
 	//printf("Memory write to location %p\n", mp);
+		int idx, tag, found = 0, count, temp;
+		writes++;
 
+		if (cacheSize == 16) {
+      if (assoc == 1) {
+         idx = (int)mp & ONESIX;
+         tag = (int)mp >> 4;
+         
+         if(cacheA[idx].valid) {
+         	if (cacheA[idx].tag == tag) {
+         		hits++;
+         		cacheA[idx].age = 1000;
+
+         		for (count = 0; count < 16 && count != idx; count++) {
+         			cacheA[count].age--;
+         		}
+         		for (count = idx + 1; count < 16 && count != idx; count++) {
+         			cacheA[count].age--;
+         		}
+         		cacheA[idx].tag = tag;
+         		cacheA[idx].data = *mp;
+         		cacheA[idx].valid = 1;
+         		cacheA[idx].age = 1000;
+         	}
+         	else {
+         		misses++;
+         		cacheA[idx].tag = tag;
+         		cacheA[idx].data = *mp;
+         		cacheA[idx].valid = 1;
+         		cacheA[idx].age = 1000;
+         	}
+         }
+         else {
+         	misses++;
+         	cacheA[idx].tag = tag;
+         	cacheA[idx].data = *mp;
+         	cacheA[idx].valid = 1;
+         	cacheA[idx].age = 1000;
+         }
+      }
+      else if (assoc == 2) {
+         idx = (int)mp & TWOSIX;
+         tag = (int)mp >> 3;
+
+         if (cacheA[idx].valid && found == 0) {
+         	if (cacheA[idx].tag == tag) {
+         		hits++;
+         		cacheA[idx].age = 1000;
+         		found = 1;
+
+         		for (count = 0; count < 8 && count != idx; count++) {
+         			cacheA[count].age--;
+         		}
+         		for (count = idx + 1; count < 8 && count != idx; count++) {
+         			cacheA[count].age--;
+         		}
+         		for (count = 0; count < 8; count++) {
+         			cacheB[count].age--;
+         		}
+         		if (cacheA[idx].age > cacheB[idx].age) {
+         			cacheB[idx].tag = tag;
+         			cacheB[idx].data = *mp;
+         			cacheB[idx].valid = 1;
+         			cacheB[idx].age = 1000;
+         		}
+         		else {
+         			cacheA[idx].tag = tag;
+         			cacheA[idx].data = *mp;
+         			cacheA[idx].valid = 1;
+         			cacheA[idx].age = 1000;
+         		}
+         	}
+         }
+         if (cacheB[idx].valid && found == 0) {
+         	if (cacheB[idx].tag == tag) {
+         		hits++;
+         		cacheB[idx].age = 1000;
+         		found = 1;
+
+         		for (count = 0; count < 8; count++) {
+         			cacheA[count].age--;
+         		}
+         		for (count = 0; count < 8 && count != idx; count++) {
+         			cacheB[count].age--;
+         		}
+         		for (count = idx + 1; count < 8 && count != idx; count++) {
+         			cacheB[count].age--;
+         		}
+         		if (cacheA[idx].age > cacheB[idx].age) {
+         			cacheB[idx].tag = tag;
+         			cacheB[idx].data = *mp;
+         			cacheB[idx].valid = 1;
+         			cacheB[idx].age = 1000;
+         		}
+         		else {
+         			cacheA[idx].tag = tag;
+         			cacheA[idx].data = *mp;
+         			cacheA[idx].valid = 1;
+         			cacheA[idx].age = 1000;
+         		}
+         	}
+         }
+         if (found == 0) {
+         	misses++;
+         	if (cacheA[idx].age > cacheB[idx].age) {
+         		cacheB[idx].tag = tag;
+         		cacheB[idx].data = *mp;
+         		cacheB[idx].valid = 1;
+         		cacheB[idx].age = 1000;
+         	}
+         	else {
+         		cacheA[idx].tag = tag;
+         		cacheA[idx].data = *mp;
+         		cacheA[idx].valid = 1;
+         		cacheA[idx].age = 1000;
+         	}
+         }
+      }
+      else if (assoc == 4) {
+         idx = (int)mp & FOURSIX;
+         tag = (int)mp >> 2;
+
+         if (cacheA[idx].valid) {
+         	if (cacheA[idx].tag == tag) {
+         		hits++;
+         		found = 1;
+         		cacheA[idx].age = 1000;
+
+         		for (count = 0; count < 4 && count != idx; count++) {
+         			cacheA[count].age--;
+         		}
+         		for (count = idx + 1; count < 4 && count != idx; count++) {
+         			cacheA[count].age--;
+         		}
+         		for (count = 0; count < 4; count++) {
+         			cacheB[count].age--;
+         		}
+         		for (count = 0; count < 4; count++) {
+         			cacheC[count].age--;
+         		}
+         		for (count = 0; count < 4; count++) {
+         			cacheD[count].age--;
+         		}
+
+         		temp = MIN(MIN(cacheA[idx].age, cacheB[idx].age), MIN(cacheC[idx].age, cacheD[idx].age));
+         		if (temp == cacheA[idx].age) {
+         			cacheA[idx].tag = tag;
+         			cacheA[idx].data = *mp;
+         			cacheA[idx].valid = 1;
+         			cacheA[idx].age = 1000;
+         		}
+         		else if (temp == cacheB[idx].age) {
+         			cacheB[idx].tag = tag;
+         			cacheB[idx].data = *mp;
+         			cacheB[idx].valid = 1;
+         			cacheB[idx].age = 1000;
+         		}
+         		else if (temp == cacheC[idx].age) {
+         			cacheC[idx].tag = tag;
+         			cacheC[idx].data = *mp;
+         			cacheC[idx].valid = 1;
+         			cacheC[idx].age = 1000;
+         		}
+         		else {
+         			cacheD[idx].tag = tag;
+         			cacheD[idx].data = *mp;
+         			cacheD[idx].valid = 1;
+         			cacheD[idx].age = 1000;
+         		}
+         	}
+         }
+         if (cacheB[idx].valid && found == 0) {
+         	if (cacheB[idx].tag == tag) {
+         		hits++;
+         		found = 1;
+         		cacheB[idx].age = 1000;
+
+         		for (count = 0; count < 4; count++) {
+         			cacheA[count].age--;
+         		}
+         		for (count = 0; count < 4 && count != idx; count++) {
+         			cacheB[count].age--;
+         		}
+         		for (count = idx + 1; count < 4 && count != idx; count++) {
+         			cacheB[count].age--;
+         		}
+         		for (count = 0; count < 4; count++) {
+         			cacheC[count].age--;
+         		}
+         		for (count = 0; count < 4; count++) {
+         			cacheD[count].age--;
+         		}
+
+         		temp = MIN(MIN(cacheA[idx].age, cacheB[idx].age), MIN(cacheC[idx].age, cacheD[idx].age));
+         		if (temp == cacheA[idx].age) {
+         			cacheA[idx].tag = tag;
+         			cacheA[idx].data = *mp;
+         			cacheA[idx].valid = 1;
+         			cacheA[idx].age = 1000;
+         		}
+         		else if (temp == cacheB[idx].age) {
+         			cacheB[idx].tag = tag;
+         			cacheB[idx].data = *mp;
+         			cacheB[idx].valid = 1;
+         			cacheB[idx].age = 1000;
+         		}
+         		else if (temp == cacheC[idx].age) {
+         			cacheC[idx].tag = tag;
+         			cacheC[idx].data = *mp;
+         			cacheC[idx].valid = 1;
+         			cacheC[idx].age = 1000;
+         		}
+         		else {
+         			cacheD[idx].tag = tag;
+         			cacheD[idx].data = *mp;
+         			cacheD[idx].valid = 1;
+         			cacheD[idx].age = 1000;
+         		}
+         	}
+         }
+         if (cacheC[idx].valid && found == 0) {
+         	if (cacheC[idx].tag == tag) {
+         		hits++;
+         		found = 1;
+         		cacheC[idx].age = 1000;
+
+         		for (count = 0; count < 4; count++) {
+         			cacheA[count].age--;
+         		}
+         		for (count = 0; count < 4; count++) {
+         			cacheB[count].age--;
+         		}
+         		for (count = 0; count < 4 && count != idx; count++) {
+         			cacheC[count].age--;
+         		}
+         		for (count = idx + 1; count < 4 && count != idx; count++) {
+         			cacheC[count].age--;
+         		}
+         		for (count = 0; count < 4; count++) {
+         			cacheD[count].age--;
+         		}
+
+         		temp = MIN(MIN(cacheA[idx].age, cacheB[idx].age), MIN(cacheC[idx].age, cacheD[idx].age));
+         		if (temp == cacheA[idx].age) {
+         			cacheA[idx].tag = tag;
+         			cacheA[idx].data = *mp;
+         			cacheA[idx].valid = 1;
+         			cacheA[idx].age = 1000;
+         		}
+         		else if (temp == cacheB[idx].age) {
+         			cacheB[idx].tag = tag;
+         			cacheB[idx].data = *mp;
+         			cacheB[idx].valid = 1;
+         			cacheB[idx].age = 1000;
+         		}
+         		else if (temp == cacheC[idx].age) {
+         			cacheC[idx].tag = tag;
+         			cacheC[idx].data = *mp;
+         			cacheC[idx].valid = 1;
+         			cacheC[idx].age = 1000;
+         		}
+         		else {
+         			cacheD[idx].tag = tag;
+         			cacheD[idx].data = *mp;
+         			cacheD[idx].valid = 1;
+         			cacheD[idx].age = 1000;
+         		}
+         	}
+         }
+         if (cacheD[idx].valid && found == 0) {
+         	if (cacheD[idx].tag == tag) {
+         		hits++;
+         		found = 1;
+         		cacheD[idx].age = 1000;
+
+         		for (count = 0; count < 4; count++) {
+         			cacheA[count].age--;
+         		}
+         		for (count = 0; count < 4; count++) {
+         			cacheB[count].age--;
+         		}
+         		for (count = 0; count < 4; count++) {
+         			cacheC[count].age--;
+         		}
+         		for (count = 0; count < 4 && count != idx; count++) {
+         			cacheD[count].age--;
+         		}
+         		for (count = idx + 1; count < 4 && count != idx; count++) {
+         			cacheD[count].age--;
+         		}
+
+         		temp = MIN(MIN(cacheA[idx].age, cacheB[idx].age), MIN(cacheC[idx].age, cacheD[idx].age));
+         		if (temp == cacheA[idx].age) {
+         			cacheA[idx].tag = tag;
+         			cacheA[idx].data = *mp;
+         			cacheA[idx].valid = 1;
+         			cacheA[idx].age = 1000;
+         		}
+         		else if (temp == cacheB[idx].age) {
+         			cacheB[idx].tag = tag;
+         			cacheB[idx].data = *mp;
+         			cacheB[idx].valid = 1;
+         			cacheB[idx].age = 1000;
+         		}
+         		else if (temp == cacheC[idx].age) {
+         			cacheC[idx].tag = tag;
+         			cacheC[idx].data = *mp;
+         			cacheC[idx].valid = 1;
+         			cacheC[idx].age = 1000;
+         		}
+         		else {
+         			cacheD[idx].tag = tag;
+         			cacheD[idx].data = *mp;
+         			cacheD[idx].valid = 1;
+         			cacheD[idx].age = 1000;
+         		}
+         	}
+         }
+         if (found == 0) {
+         	misses++;
+         	temp = MIN(MIN(cacheA[idx].age, cacheB[idx].age), MIN(cacheC[idx].age, cacheD[idx].age));
+         	if (temp == cacheA[idx].age) {
+         		cacheA[idx].tag = tag;
+         		cacheA[idx].data = *mp;
+         		cacheA[idx].valid = 1;
+         		cacheA[idx].age = 1000;
+         	}
+         	else if (temp == cacheB[idx].age) {
+         		cacheB[idx].tag = tag;
+         		cacheB[idx].data = *mp;
+         		cacheB[idx].valid = 1;
+         		cacheB[idx].age = 1000;
+         	}
+         	else if (temp == cacheC[idx].age) {
+         		cacheC[idx].tag = tag;
+         		cacheC[idx].data = *mp;
+         		cacheC[idx].valid = 1;
+         		cacheC[idx].age = 1000;
+         	}
+         	else {
+         		cacheD[idx].tag = tag;
+         		cacheD[idx].data = *mp;
+         		cacheD[idx].valid = 1;
+         		cacheD[idx].age = 1000;
+         	}
+         }
+      }
+   }
+   else {
+      if (assoc == 1) {
+         idx = (int)mp & ONEFIFTYSIX;
+         tag = (int)mp >> 8;
+
+         if(cacheA[idx].valid) {
+         	if (cacheA[idx].tag == tag) {
+         		hits++;
+         		cacheA[idx].age = 1000;
+
+         		for (count = 0; count < 256 && count != idx; count++) {
+         			cacheA[count].age--;
+         		}
+         		for (count = idx + 1; count < 256; count++) {
+         			cacheA[count].age--;
+         		}
+         		cacheA[idx].tag = tag;
+         		cacheA[idx].data = *mp;
+         		cacheA[idx].valid = 1;
+         		cacheA[idx].age = 1000;
+         		}
+         	else {
+         		misses++;
+         		cacheA[idx].tag = tag;
+         		cacheA[idx].data = *mp;
+         		cacheA[idx].valid = 1;
+         		cacheA[idx].age = 1000;
+         	}
+         }
+         else {
+         	misses++;
+         	cacheA[idx].tag = tag;
+         	cacheA[idx].data = *mp;
+         	cacheA[idx].valid = 1;
+         	cacheA[idx].age = 1000;
+         }
+      }
+      else if (assoc == 2) {
+         idx = (int)mp & TWOFIFTYSIX;
+         tag = (int)mp >> 7;
+
+         if (cacheA[idx].valid && found == 0) {
+         	if (cacheA[idx].tag == tag) {
+         		hits++;
+         		cacheA[idx].age = 1000;
+         		found = 1;
+
+         		for (count = 0; count < 128 && count != idx; count++) {
+         			cacheA[count].age--;
+         		}
+         		for (count = idx + 1; count < 128 && count != idx; count++) {
+         			cacheA[count].age--;
+         		}
+         		for (count = 0; count < 128; count++) {
+         			cacheB[count].age--;
+         		}
+         		if (cacheA[idx].age > cacheB[idx].age) {
+         		cacheB[idx].tag = tag;
+         		cacheB[idx].data = *mp;
+         		cacheB[idx].valid = 1;
+         		cacheB[idx].age = 1000;
+         		}
+         		else {
+         			cacheA[idx].tag = tag;
+         			cacheA[idx].data = *mp;
+         			cacheA[idx].valid = 1;
+         			cacheA[idx].age = 1000;
+         		}
+         	}
+         }
+         if (cacheB[idx].valid && found == 0) {
+         	if (cacheB[idx].tag == tag) {
+         		hits++;
+         		cacheB[idx].age = 1000;
+         		found = 1;
+
+         		for (count = 0; count < 128; count++) {
+         			cacheA[count].age--;
+         		}
+         		for (count = 0; count < 128 && count != idx; count++) {
+         			cacheB[count].age--;
+         		}
+         		for (count = idx + 1; count < 128 && count != idx; count++) {
+         			cacheB[count].age--;
+         		}
+         		if (cacheA[idx].age > cacheB[idx].age) {
+         		cacheB[idx].tag = tag;
+         		cacheB[idx].data = *mp;
+         		cacheB[idx].valid = 1;
+         		cacheB[idx].age = 1000;
+         		}
+         		else {
+         			cacheA[idx].tag = tag;
+         			cacheA[idx].data = *mp;
+         			cacheA[idx].valid = 1;
+         			cacheA[idx].age = 1000;
+         		}
+         	}
+         }
+         if (found == 0) {
+         	misses++;
+         	if (cacheA[idx].age > cacheB[idx].age) {
+         		cacheB[idx].tag = tag;
+         		cacheB[idx].data = *mp;
+         		cacheB[idx].valid = 1;
+         		cacheB[idx].age = 1000;
+         	}
+         	else {
+         		cacheA[idx].tag = tag;
+         		cacheA[idx].data = *mp;
+         		cacheA[idx].valid = 1;
+         		cacheA[idx].age = 1000;
+         	}
+         }
+      }
+      else if (assoc == 4) {
+         idx = (int)mp & FOURFIFTYSIX;
+         tag = (int)mp >> 6;
+
+         if (cacheA[idx].valid) {
+         	if (cacheA[idx].tag == tag) {
+         		hits++;
+         		found = 1;
+         		cacheA[idx].age = 1000;
+
+         		for (count = 0; count < 64 && count != idx; count++) {
+         			cacheA[count].age--;
+         		}
+         		for (count = idx + 1; count < 64 && count != idx; count++) {
+         			cacheA[count].age--;
+         		}
+         		for (count = 0; count < 64; count++) {
+         			cacheB[count].age--;
+         		}
+         		for (count = 0; count < 64; count++) {
+         			cacheC[count].age--;
+         		}
+         		for (count = 0; count < 64; count++) {
+         			cacheD[count].age--;
+         		}
+
+         		temp = MIN(MIN(cacheA[idx].age, cacheB[idx].age), MIN(cacheC[idx].age, cacheD[idx].age));
+         		if (temp == cacheA[idx].age) {
+         			cacheA[idx].tag = tag;
+         			cacheA[idx].data = *mp;
+         			cacheA[idx].valid = 1;
+         			cacheA[idx].age = 1000;
+         		}
+         		else if (temp == cacheB[idx].age) {
+         			cacheB[idx].tag = tag;
+         			cacheB[idx].data = *mp;
+         			cacheB[idx].valid = 1;
+         			cacheB[idx].age = 1000;
+         		}
+         		else if (temp == cacheC[idx].age) {
+         			cacheC[idx].tag = tag;
+         			cacheC[idx].data = *mp;
+         			cacheC[idx].valid = 1;
+         			cacheC[idx].age = 1000;
+         		}
+         		else {
+         			cacheD[idx].tag = tag;
+         			cacheD[idx].data = *mp;
+         			cacheD[idx].valid = 1;
+         			cacheD[idx].age = 1000;
+         		}
+         	}
+         }
+         if (cacheB[idx].valid && found == 0) {
+         	if (cacheB[idx].tag == tag) {
+         		hits++;
+         		found = 1;
+         		cacheB[idx].age = 1000;
+
+         		for (count = 0; count < 64; count++) {
+         			cacheA[count].age--;
+         		}
+         		for (count = 0; count < 64 && count != idx; count++) {
+         			cacheB[count].age--;
+         		}
+         		for (count = idx + 1; count < 64 && count != idx; count++) {
+         			cacheB[count].age--;
+         		}
+         		for (count = 0; count < 64; count++) {
+         			cacheC[count].age--;
+         		}
+         		for (count = 0; count < 64; count++) {
+         			cacheD[count].age--;
+         		}
+
+         		temp = MIN(MIN(cacheA[idx].age, cacheB[idx].age), MIN(cacheC[idx].age, cacheD[idx].age));
+         		if (temp == cacheA[idx].age) {
+         			cacheA[idx].tag = tag;
+         			cacheA[idx].data = *mp;
+         			cacheA[idx].valid = 1;
+         			cacheA[idx].age = 1000;
+         		}
+         		else if (temp == cacheB[idx].age) {
+         			cacheB[idx].tag = tag;
+         			cacheB[idx].data = *mp;
+         			cacheB[idx].valid = 1;
+         			cacheB[idx].age = 1000;
+         		}
+         		else if (temp == cacheC[idx].age) {
+         			cacheC[idx].tag = tag;
+         			cacheC[idx].data = *mp;
+         			cacheC[idx].valid = 1;
+         			cacheC[idx].age = 1000;
+         		}
+         		else {
+         			cacheD[idx].tag = tag;
+         			cacheD[idx].data = *mp;
+         			cacheD[idx].valid = 1;
+         			cacheD[idx].age = 1000;
+         		}
+         	}
+         }
+         if (cacheC[idx].valid && found == 0) {
+         	if (cacheC[idx].tag == tag) {
+         		hits++;
+         		found = 1;
+         		cacheC[idx].age = 1000;
+
+         		for (count = 0; count < 64; count++) {
+         			cacheA[count].age--;
+         		}
+         		for (count = 0; count < 64; count++) {
+         			cacheB[count].age--;
+         		}
+         		for (count = 0; count < 64 && count != idx; count++) {
+         			cacheC[count].age--;
+         		}
+         		for (count = idx + 1; count < 64 && count != idx; count++) {
+         			cacheC[count].age--;
+         		}
+         		for (count = 0; count < 64; count++) {
+         			cacheD[count].age--;
+         		}
+
+         		temp = MIN(MIN(cacheA[idx].age, cacheB[idx].age), MIN(cacheC[idx].age, cacheD[idx].age));
+         		if (temp == cacheA[idx].age) {
+         			cacheA[idx].tag = tag;
+         			cacheA[idx].data = *mp;
+         			cacheA[idx].valid = 1;
+         			cacheA[idx].age = 1000;
+         		}
+         		else if (temp == cacheB[idx].age) {
+         			cacheB[idx].tag = tag;
+         			cacheB[idx].data = *mp;
+         			cacheB[idx].valid = 1;
+         			cacheB[idx].age = 1000;
+         		}
+         		else if (temp == cacheC[idx].age) {
+         			cacheC[idx].tag = tag;
+         			cacheC[idx].data = *mp;
+         			cacheC[idx].valid = 1;
+         			cacheC[idx].age = 1000;
+         		}
+         		else {
+         			cacheD[idx].tag = tag;
+         			cacheD[idx].data = *mp;
+         			cacheD[idx].valid = 1;
+         			cacheD[idx].age = 1000;
+         		}
+         	}
+         }
+         if (cacheD[idx].valid && found == 0) {
+         	if (cacheD[idx].tag == tag) {
+         		hits++;
+         		found = 1;
+         		cacheD[idx].age = 1000;
+
+         		for (count = 0; count < 64; count++) {
+         			cacheA[count].age--;
+         		}
+         		for (count = 0; count < 64; count++) {
+         			cacheB[count].age--;
+         		}
+         		for (count = 0; count < 64; count++) {
+         			cacheC[count].age--;
+         		}
+         		for (count = 0; count < 64 && count != idx; count++) {
+         			cacheD[count].age--;
+         		}
+         		for (count = 0; count < 64 && count != idx; count++) {
+         			cacheD[count].age--;
+         		}
+
+         		temp = MIN(MIN(cacheA[idx].age, cacheB[idx].age), MIN(cacheC[idx].age, cacheD[idx].age));
+         		if (temp == cacheA[idx].age) {
+         			cacheA[idx].tag = tag;
+         			cacheA[idx].data = *mp;
+         			cacheA[idx].valid = 1;
+         			cacheA[idx].age = 1000;
+         		}
+         		else if (temp == cacheB[idx].age) {
+         			cacheB[idx].tag = tag;
+         			cacheB[idx].data = *mp;
+         			cacheB[idx].valid = 1;
+         			cacheB[idx].age = 1000;
+         		}
+         		else if (temp == cacheC[idx].age) {
+         			cacheC[idx].tag = tag;
+         			cacheC[idx].data = *mp;
+         			cacheC[idx].valid = 1;
+         			cacheC[idx].age = 1000;
+         		}
+         		else {
+         			cacheD[idx].tag = tag;
+         			cacheD[idx].data = *mp;
+         			cacheD[idx].valid = 1;
+         			cacheD[idx].age = 1000;
+         		}
+         	}
+         }
+         if (found == 0) {
+         	misses++;
+         	temp = MIN(MIN(cacheA[idx].age, cacheB[idx].age), MIN(cacheC[idx].age, cacheD[idx].age));
+         	if (temp == cacheA[idx].age) {
+         		cacheA[idx].tag = tag;
+         		cacheA[idx].data = *mp;
+         		cacheA[idx].valid = 1;
+         		cacheA[idx].age = 1000;
+         	}
+         	else if (temp == cacheB[idx].age) {
+         		cacheB[idx].tag = tag;
+         		cacheB[idx].data = *mp;
+         		cacheB[idx].valid = 1;
+         		cacheB[idx].age = 1000;
+         	}
+         	else if (temp == cacheC[idx].age) {
+         		cacheC[idx].tag = tag;
+         		cacheC[idx].data = *mp;
+         		cacheC[idx].valid = 1;
+         		cacheC[idx].age = 1000;
+         	}
+         	else {
+         		cacheD[idx].tag = tag;
+         		cacheD[idx].data = *mp;
+         		cacheD[idx].valid = 1;
+         		cacheD[idx].age = 1000;
+         	}
+         }
+      }
+   }
 	}
 
 /* Statically define the arrays a, b, and mult, where mult will become the cross product of a and b, i.e., a x b. */
 
 static int a[AMAX][AMAX], b[AMAX][AMAX], mult[AMAX][AMAX];
-
-void makeCache(Cache *cache) {
-   int idxSize, tagSize, dataSize, tmp;
-   
-   //m = ADDSIZE;
-   tmp = cacheSize / assoc;
-   //s = log(tmp) / log(2); //find s from 2^s = tmp
-   tmp = (cacheSize / 4) * 4; //number of bytes per line
-   //n = log(tmp) / log(2) //find n from 2^n = bytes per line
-   
-   
-   
-}
 
 
 void matmul( r1, c1, c2 )
@@ -159,6 +1228,11 @@ int main()
 
     int *mp1, *mp2, *mp3;
 
+    reads = 0;
+    writes = 0;
+    hits = 0;
+    misses = 0;
+
     printf("Size of pointer is: %d\n\n", sizeof(mp1));
 
     while (cacheSize != 16 && cacheSize != 256) {
@@ -168,6 +1242,37 @@ int main()
     while (assoc != 1 && assoc != 2 && assoc != 4) {
     	printf("Input associtivty (1, 2, or 4): ");
     	scanf("%1d", &assoc);
+    }
+
+    if (cacheSize == 16) {
+    	if (assoc == 1) {
+    		cacheA = calloc(16, sizeof(cBlock));
+    	}
+    	else if (assoc == 2) {
+    		cacheA = calloc(8, sizeof(cBlock));
+    		cacheB = calloc(8, sizeof(cBlock));
+    	}
+    	else {
+    		cacheA = calloc(4, sizeof(cBlock));
+    		cacheB = calloc(4, sizeof(cBlock));
+    		cacheC = calloc(4, sizeof(cBlock));
+    		cacheD = calloc(4, sizeof(cBlock));
+    	}
+    }
+    else {
+    	if (assoc == 1) {
+    		cacheA = calloc(256, sizeof(cBlock));
+    	}
+    	else if (assoc == 2) {
+    		cacheA = calloc(128, sizeof(cBlock));
+    		cacheB = calloc(128, sizeof(cBlock));
+    	}
+    	else {
+    		cacheA = calloc(64, sizeof(cBlock));
+    		cacheB = calloc(64, sizeof(cBlock));
+    		cacheC = calloc(64, sizeof(cBlock));
+    		cacheD = calloc(64, sizeof(cBlock));
+    	}
     }
 
     printf("Enter rows and column for first matrix: ");
@@ -221,5 +1326,11 @@ int main()
         if(j==c2-1)
             printf("\n\n");
     }
+
+    #if CACHESIM
+    	printf("Read/Write ratio: %0.2f\n", reads/writes);
+    	printf("Hits: %0.2f; Misses: %0.2f\n", hits, misses);
+    	printf("Hit rate: %0.4f\n", hits/(hits + misses));
+	#endif
     return 0;
 }
