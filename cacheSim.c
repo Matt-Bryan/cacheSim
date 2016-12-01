@@ -16,6 +16,8 @@ typedef struct cache {
    int valid;
 } Cache;
 
+static int cacheSize, assoc;
+
 /*	memory management, code density, Cache emulation - statistics generation */
 /*	Generated for CSC 315 Lab 5 */
 
@@ -42,7 +44,6 @@ mem_write(int *mp)
 /* Statically define the arrays a, b, and mult, where mult will become the cross product of a and b, i.e., a x b. */
 
 static int a[AMAX][AMAX], b[AMAX][AMAX], mult[AMAX][AMAX];
-static int cacheSize, assoc;
 
 void makeCache(Cache *cache) {
    int idxSize, tagSize, dataSize, tmp;
