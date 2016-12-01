@@ -7,16 +7,27 @@
 #define ADDSIZE 32
 #define BYTESPERBLOCK 4
 
+#define ONESIX 0xF
+#define TWOSIX 0x7
+#define FOURSIX 0x3
+#define ONEFIFTYSIX 0xFF
+#define TWOFIFTYSIX 0x7F
+#define FOURFIFTYSIX 0x3F
+
 #include <stdio.h>
 
-typedef struct cache {
-   unsigned int *index;
-   unsigned int *tag;
-   unsigned int *data;
+typedef struct cblock {
+   unsigned int tag;
+   unsigned int data;
    int valid;
-} Cache;
+} cBlock;
 
-static int cacheSize, assoc;
+static cBlock *cacheA;
+static cBlock *cacheB;
+static cBlock *cacheC;
+static cBlock *cacheD;
+
+static int cacheSize, assoc, hits, misses;
 
 /*	memory management, code density, Cache emulation - statistics generation */
 /*	Generated for CSC 315 Lab 5 */
@@ -24,12 +35,54 @@ static int cacheSize, assoc;
 
 /* This function gets called with each "read" reference to memory */
 
-mem_read(int *mp)
-	{
-
+void mem_read(int *mp) {
+   int idx, tag;
+   
+   if (cacheSize == 16) {
+      if (assoc == 1) {
+         idx = mp & ONESIX;
+         tag = mp >> 4;
+         
+      }
+      else if (assoc == 2) {
+         idx = mp & TWOSIX;
+         tag = mp >> 3;
+      }
+      else if (assoc == 4) {
+         idx = mp & FOURSIX;
+         tag = mp >> 2;
+      }
+   }
+   else {
+      if (assoc == 1) {
+         idx = mp & ONEFIFTYSIX;
+         tag = mp >> 8;
+      }
+      else if (assoc == 2) {
+         idx = mp & TWOFIFTYSIX;
+         tag = mp >> 7;
+      }
+      else if (assoc == 4) {
+         idx = mp & FOURFIFTYSIX;
+         tag = mp >> 6;
+      }
+   }
+   
+   if (cache[idx].valid) {
+      if (cache[idx].tag == tag) { //hit
+         hits++;
+      }
+      else { //miss
+         cache[idx].tag = tag;
+         
+      }
+   }
+   else { //miss
+      misses++;
+   }
 	//printf("Memory read from location %p\n", mp);
 
-	}
+}
 
 
 /* This function gets called with each "write" reference to memory */
