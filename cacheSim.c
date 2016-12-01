@@ -55,7 +55,7 @@ void makeCache(int assoc, int cacheSize, Cache *cache) {
 /* Statically define the arrays a, b, and mult, where mult will become the cross product of a and b, i.e., a x b. */
 
 static int a[AMAX][AMAX], b[AMAX][AMAX], mult[AMAX][AMAX];
-static int cacheSize, assoc;
+static int cacheSize, associativity;
 
 
 
@@ -113,9 +113,9 @@ int main()
     	printf("Input cache size in words (16 or 256): ");
     	scanf("%3d", &cacheSize);
     }
-    while (assoc != 1 && assoc != 2 && assoc != 4) {
+    while (associativity != 1 && associativity != 2 && associativity != 4) {
     	printf("Input associtivty (1, 2, or 4): ");
-    	scanf("%1d", &assoc);
+    	scanf("%1d", &associativity);
     }
 
     printf("Enter rows and column for first matrix: ");
